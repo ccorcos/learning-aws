@@ -168,7 +168,288 @@ Then let's delete the bucket:
 ❯❯❯ aws s3api delete-bucket --bucket elasticbeanstalk-us-west-2-368059788469
 ```
 
-Wicked.
+Wicked. Well shit I still haven't done anything.
+
+Let's make a static website. Here's an index.html file as a landing page for a domain name I bought.
+
+```html
+<html>
+  <head>
+    <title>Heaviocity</title>
+    <meta name="viewport" content="width=device-width">
+  </head>
+  <body>
+    <style>
+    body {
+      background-color: rgb(21, 46, 201);
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 200px;
+    }
+    </style>
+    <h1>Heviocity</h1>
+    <h5>Heaviness Maximus</h5>
+  </body>
+</html>
+```
+
+Let's create a bucket.
+
+```sh
+❯❯❯ aws s3api create-bucket --bucket heaviocity
+/heaviocity
+```
+
+Then lets upload the index.html file:
+
+```sh
+❯❯❯ aws s3 cp heaviocity/index.html s3://heaviocity
+upload: heaviocity/index.html to s3://heaviocity/index.html
+```
+
+Let's update the permissions so that anyone can read documents in this s3 bucket.
+
+```sh
+❯❯❯ aws s3api put-bucket-policy --bucket heaviocity --policy '{
+  "Statement": [{
+    "Action": ["s3:GetObject"],
+    "Effect": "Allow",
+	  "Principal": "*",
+    "Resource": ["arn:aws:s3:::heaviocity/*"]
+  }]
+}'
+```
+
+To make a website, we're going to use the `website` command: http://docs.aws.amazon.com/cli/latest/reference/s3/website.html
+
+Looks like they want an error.html file, so let's do that too:
+
+```html
+<html>
+  <head>
+    <title>404 Heaviocity</title>
+    <meta name="viewport" content="width=device-width">
+  </head>
+  <body>
+    <style>
+    body {
+      background-color: rgb(21, 46, 201);
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 200px;
+    }
+    </style>
+    <h1>Heviocity 404</h1>
+    <h5><a href="/">Back to Safety!</a></h5>
+  </body>
+</html>
+```
+
+This time let's use sync:
+
+```sh
+❯❯❯ aws s3 sync heaviocity s3://heaviocity
+upload: heaviocity/error.html to s3://heaviocity/error.html
+```
+
+Sweet. Now let's make it a website.
+
+```sh
+❯❯❯ aws s3 website s3://heaviocity/ --index-document index.html --error-document error.html
+```
+
+When you look up the bucket location:
+
+```sh
+❯❯❯ aws s3api get-bucket-location --bucket heaviocity
+None
+```
+
+Apparently that defaults to `us-east-1` so you can actually find the website here: http://heaviocity.s3-website-us-east-1.amazonaws.com/
+
+Looks like we could have used the `--create-bucket-configuration` option with `create-bucket` to put it in another location.
+
+But if you want to distribute this around world in a speedy fashion, you'll want to use Cloudfront anyways.
+
+But first, we should set up our domain name to point to this. I like to use Google Domains to register my domain name, and you'll need to use something like that. But then we can use Route 53 to handle everything else.
+
+First, we need to create a new "hosted zone":
+
+```sh
+❯❯❯ aws route53 create-hosted-zone --name heaviocity.com --caller-reference chet
+https://route53.amazonaws.com/2013-04-01/hostedzone/Z1XMR5FKGT8423
+CHANGEINFO	/change/C2UHZ9ARRMWUL7	PENDING	2016-11-12T22:40:48.784Z
+NAMESERVERS	ns-1313.awsdns-36.org
+NAMESERVERS	ns-540.awsdns-03.net
+NAMESERVERS	ns-1613.awsdns-09.co.uk
+NAMESERVERS	ns-347.awsdns-43.com
+HOSTEDZONE	chet	/hostedzone/Z1XMR5FKGT8423	heaviocity.com.	2
+CONFIG	False
+
+❯❯❯ aws route53 list-hosted-zones
+HOSTEDZONES	chet	/hostedzone/Z1XMR5FKGT8423	heaviocity.com.	2
+CONFIG	False
+
+❯❯❯ aws route53 get-hosted-zone --id /hostedzone/Z1XMR5FKGT8423
+NAMESERVERS	ns-1313.awsdns-36.org
+NAMESERVERS	ns-540.awsdns-03.net
+NAMESERVERS	ns-1613.awsdns-09.co.uk
+NAMESERVERS	ns-347.awsdns-43.com
+HOSTEDZONE	chet	/hostedzone/Z1XMR5FKGT8423	heaviocity.com.	2
+CONFIG	False
+```
+
+Cool. Now we need to connect those name servers to the DNS website we used to register the domain. For me, thats Google Domains -- it was pretty easy to figure out.
+
+You can check to see if the transfer worked:
+
+```sh
+❯❯❯ dig +recurse +trace heaviocity.com any
+```
+
+Didn't seem to work yet, but lets continue and see if it worked later (apparently this can take a day or two).
+
+We need to create some DNS records to point to our s3 bucket.
+
+```sh
+❯❯❯ aws route53 list-resource-record-sets --hosted-zone-id /hostedzone/Z1XMR5FKGT8423
+RESOURCERECORDSETS	heaviocity.com.	172800	NS
+RESOURCERECORDS	ns-1313.awsdns-36.org.
+RESOURCERECORDS	ns-540.awsdns-03.net.
+RESOURCERECORDS	ns-1613.awsdns-09.co.uk.
+RESOURCERECORDS	ns-347.awsdns-43.com.
+RESOURCERECORDSETS	heaviocity.com.	900	SOA
+RESOURCERECORDS	ns-1313.awsdns-36.org. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400
+```
+
+Lets use a CNAME to alias to our bucket: http://heaviocity.s3-website-us-east-1.amazonaws.com/
+
+```sh
+❯❯❯ aws route53 change-resource-record-sets --hosted-zone-id /hostedzone/Z1XMR5FKGT8423 --change-batch '{
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "heaviocity.com",
+        "Type": "A",
+        "TTL": 60,
+        "AliasTarget": {
+          "HostedZoneId": "/hostedzone/Z1XMR5FKGT8423",
+          "DNSName": "s3-website-us-east-1.amazonaws.com"
+        },
+      }
+    },
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "www",
+        "Type": "CNAME",
+        "TTL": 60,
+        "ResourceRecords": [
+          {
+            "Value": "heaviocity.com"
+          }
+        ]
+      }
+    }
+  ]
+}'
+```
+
+FUCK Nothing is working!
+
+To clean up
+
+```sh
+aws route53 delete-hosted-zone --id /hostedzone/Z1XMR5FKGT8423
+aws s3 rb s3://heaviocity --force
+```
+
+- TODO
+  - figure out how to handle DNS stuff from the cli
+    - set up A record to point to s3
+    - set up CNAME to alias www to @.
+  - set up cloudfront
+  - set up caching headers
+  - set up logs
+  - set up HTML5 routing
+  - https setup
+
+# S3 Round 2
+
+```sh
+# make bucket with the name of your website
+aws s3 mb s3://heaviocity.com
+
+# deploy html files
+aws s3 sync ./heaviocity s3://heaviocity.com \
+  --delete \
+  --acl public-read \
+  --include "*.html"
+
+# THIS DOESNT WORK!!!
+# but its the right idea...
+mkdir -p .tmp
+find . -iname '*.css' \
+  -o -iname '*.js' \
+  -o -iname '*.png' \
+  -exec 'gzip -9 -n {} > .tmp' \;\
+  -exec 'mv {}.gz .tmp/{}' \;
+
+aws s3 sync ./heaviocity s3://heaviocity.com \
+  --acl public-read
+  --delete
+  --include "*.js"
+  --include "*.css"
+  --include "*.png"
+  --cache-control 'max-age=31536000' # cache for an entire year
+  --content-encoding 'gzip'
+```
+
+Continue here: https://brandur.org/aws-intrinsic-static
+
+# EC2
+
+
+
+- TODO
+  - create an ec2 instance
+    - ssh and play around
+  - create a node app
+    - serve from that server
+  - api gateway?
+  - create the node app in a docker container
+    - deploy the docker container
+  - send logs somewhere
+  - restart on exit
+  - simple deployment script / coordination
+  - send email / text / notify on errors or events
+
+# TODO
+
+- DNS stuff
+  - configure subdomains
+  - reverse proxying
+- setup lambda on api gateway
+- IoT chat application?
+- SNS -- send notifications!
+
+# EC2
+
+
+
+- create ec2 instance
+-
+- create a server
+- ssh
+- deploy a simple node app
+- CNAME / domain name?
+- delete the server
+- how much did that cost?
+
+
 
 # Examples
 
