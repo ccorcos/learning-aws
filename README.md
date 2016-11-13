@@ -367,16 +367,6 @@ aws route53 delete-hosted-zone --id /hostedzone/Z1XMR5FKGT8423
 aws s3 rb s3://heaviocity --force
 ```
 
-- TODO
-  - figure out how to handle DNS stuff from the cli
-    - set up A record to point to s3
-    - set up CNAME to alias www to @.
-  - set up cloudfront
-  - set up caching headers
-  - set up logs
-  - set up HTML5 routing
-  - https setup
-
 # S3 Round 2
 
 ```sh
@@ -410,22 +400,33 @@ aws s3 sync ./heaviocity s3://heaviocity.com \
 
 Continue here: https://brandur.org/aws-intrinsic-static
 
+- TODO
+  - figure out how to handle DNS stuff from the cli
+    - set up A record to point to s3
+    - set up CNAME to alias www to @.
+  - set up cloudfront
+  - deployment
+  - set up caching headers
+  - gzip assets
+  - set up logs
+  - set up HTML5 routing
+  - https setup
+
 # EC2
-
-
 
 - TODO
   - create an ec2 instance
     - ssh and play around
   - create a node app
     - serve from that server
-  - api gateway?
+  - api gateway / reverse proxy
   - create the node app in a docker container
     - deploy the docker container
   - send logs somewhere
   - restart on exit
   - simple deployment script / coordination
   - send email / text / notify on errors or events
+  - health check
 
 # TODO
 
@@ -434,22 +435,8 @@ Continue here: https://brandur.org/aws-intrinsic-static
   - reverse proxying
 - setup lambda on api gateway
 - IoT chat application?
-- SNS -- send notifications!
 
 # EC2
-
-
-
-- create ec2 instance
--
-- create a server
-- ssh
-- deploy a simple node app
-- CNAME / domain name?
-- delete the server
-- how much did that cost?
-
-
 
 # Examples
 
