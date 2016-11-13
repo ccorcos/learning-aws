@@ -438,13 +438,19 @@ Continue here: https://brandur.org/aws-intrinsic-static
 
 # EC2
 
+http://docs.aws.amazon.com/cli/latest/userguide/tutorial-ec2-ubuntu.html
+
 # Examples
 
-- serve a static website from Lambda
-- send an email
+- explain / understand
+  - iam, s3, cloudfront, cloudformation, s3, dynamo, rds, sqs, lambda, iot, kinesis, redshift
+
+- create and serve a static website from S3
+- create a server-rendered Node.js website on Lambda
+- create a website with user authentication using IAM
+- send an email from a website
 - create a database and do pixel tracking with emails
 - create a database and signup for email list
-
 
 # Blah
 
